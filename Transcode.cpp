@@ -30,6 +30,12 @@ namespace Transcode {
     : mapping(mapping_), source(0), target(0), pipeline(0)
     {}
 
+    Mapping::Builder::~Builder() throw(){
+	if (source)	free(const_cast<char *>(source));
+	if (target)	free(const_cast<char *>(target));
+	if (pipeline)	free(const_cast<char *>(pipeline));
+    }
+
     bool Mapping::Builder::pending() throw() {
 	return source || target || pipeline;
     }
@@ -37,6 +43,9 @@ namespace Transcode {
     void Mapping::Builder::build() throw() {
 	if (source && target && pipeline) {
 	    mapping.add(source, target, pipeline);
+	    free(const_cast<char *>(source));
+	    free(const_cast<char *>(target));
+	    free(const_cast<char *>(pipeline));
 	    source = target = pipeline = 0;
 	}
     }
@@ -45,17 +54,17 @@ namespace Transcode {
 	    char const * arg, int key, fuse_args * args) throw() {
 	size_t length;
 	if ((length = Utility::match(arg, "source=", "src_ext=", 0))) {
-	    source = arg + length;
+	    source = strdup(arg + length);
 	    build();
 	    return 0;
 	}
 	if ((length = Utility::match(arg, "target=", "dst_ext=", 0))) {
-	    target = arg + length;
+	    target = strdup(arg + length);
 	    build();
 	    return 0;
 	}
 	if ((length = Utility::match(arg, "pipeline=", 0))) {
-	    pipeline = arg + length;
+	    pipeline = strdup(arg + length);
 	    build();
 	    return 0;
 	}

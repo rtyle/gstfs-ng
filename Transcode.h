@@ -88,6 +88,7 @@ namespace Transcode {
 	    void build() throw();
 	public:
 	    Builder(Mapping & mapping) throw();
+	    ~Builder() throw();
 	    int option(
 		char const * arg, int key, fuse_args * args) throw();
 	    bool pending() throw();
