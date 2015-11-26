@@ -1,0 +1,225 @@
+.\" Copyright (c) 2009 Ross Tyler.
+.\" This file may be copied under the terms of the
+.\" GNU Lesser General Public License (LGPL).
+.\" See COPYING file for details.
+.TH GSTFS-NG 8 "May 2009" "gstfs-ng 0.1"
+.SH NAME
+gstfs-ng - Next Generation Gstreamer Filesystem
+.SH SYNOPSIS
+.B gstfs-ng 
+\fB[-o \fIoption\fP\fB[,...]]\fR
+.I BASEDIRECTORY
+.I MOUNTPOINT
+.br
+.B mount -t gstfs-ng 
+\fB[-o \fIoption\fP\fB[,...]]\fR
+.I BASEDIRECTORY
+.I MOUNTPOINT
+.br
+
+.SH DESCRIPTION
+\fBgstfs-ng\fR is a read-only filesystem that acts as a gstreamer-based
+transcoding facade (visible at \fIMOUNTPOINT\fP)
+over an existing \fIBASEDIRECTORY\fP tree.
+.PP
+Perhaps \fBgstfs-ng\fR is best explained by an example use case:
+.PP
+A music archive stored on a computer might enjoy ample space
+for disk storage and, therefore, the archive maintainer might choose
+a high quality lossless encoding to store content.
+For lack of storage, however, the same archive might not fit on a portable
+media player.
+A portable media player might require a lower quality lossy encoding to
+store the complete archive.
+.PP
+In order to balance the needs between quality and size,
+one might be tempted to store both a high quality lossless and a low quality
+lossy archive on their computer.
+This, of course, requires additional storage on the computer and presents
+the archive maintainer with synchronization problems.
+.PP
+\fBgstfs-ng\fR helps by allowing one archive type appear as another.
+In this case, it allows the large high quality archive
+to appear as a smaller low quality one.
+To make this happen, \fBgstfs-ng\fR must be told where the base of the
+original archive is, where the transcoded archive should appear
+and the transcodings that should take place between them.
+.PP
+The transcodings that are to occur are specified as transcode mappings.
+Each mapping must specify
+a source extension (e.g. \fBsource=\fR\fIflac\fP),
+a target extension (e.g. \fBtarget=\fR\fIogg\fP) and
+a gstreamer pipeline description that can be used to perform the transcoding.
+\fBgstfs-ng\fR can perform many such mappings at once as long as the
+source to target file name extension mapping is one-to-one.
+\fBgstfs-ng\fR creates a new transcode mapping as soon as it has all three
+components and then prepares to build the next.
+.PP
+While \fBgstfs-ng\fR relies on fuse (Filesystem in Userspace) technology
+to allow transcoded files to appear as a filesystem,
+it relies on gstreamer technology to actually perform the transcodings.
+This means that that type of transcodings that \fBgstfs-ng\fR can perform
+are only limited by the capabilities of
+(audio/video/tagging formats supported by)
+the installed gstreamer implementation.
+.SH OPTIONS
+Below is a summary of each mount \fIoption\fP that \fBgstfs-ng\fR accepts.
+.TP
+.BI source= SOURCE
+Set the source file extention in a transcode mapping.
+All files with this \fISOURCE\fP extension under the \fIBASEDIRECTORY\fP
+will appear under the \fBgstfs-ng\fR filesystem as transcoded files with the
+\fITARGET\fP file extension.
+.TP
+.BI target= TARGET
+Set the target file extention in a transcode mapping.
+.TP
+.BI pipeline= PIPELINE
+\fIPIPELINE\fP is a gstreamer parseable pipeline description.
+These descriptions typically contain whitespace that might need to
+escaped from a shell/interpreter.
+Spaces in fstab fields must be represented as \\040 (octal for ASCII space).
+For testing, one might specify an empty pipeline
+for an identity transcoding.
+
+A transcoding pipeline that converts a flac audio encoding to
+ogg/vorbis might be specified as follows:
+.sp
+.nf
+flacdec ! audioconvert ! vorbisenc ! oggmux
+.fi
+.sp
+
+A transcoding pipeline that converts ogg/vorbis to mp3
+might be specified as follows:
+.sp
+.nf
+oggdemux ! vorbisdec ! audioconvert ! lame
+.fi
+.sp
+Use \fBgst-inspect\fR to inspect the properties
+available for gstreamer elements.
+For testing, use the \fBgst-launch\fR utility.
+.TP
+.BI cacheCount= COUNT
+Limit the number of transcoded images that \fBgstfs-ng\fR will cache
+in memory after transcoding them.
+\fICOUNT\fP should be specified as a number of images
+but may also have a single character suffix to suggest scale
+(k, m or g to multiply by 2 **10, **20 or **30, respectively).
+The default is 50 images.
+.TP
+.BI cacheMemory= MEMORY
+Limit the total size of transcoded images that \fBgstfs-ng\fR will cache
+in memory after transcoding them.
+\fIMEMORY\fP should be specified as a number of bytes
+but may also have a single character suffix to suggest scale
+(k, m or g to multiply by 2 **10, **20 or **30, respectively).
+Alternately, a number with a % suffix is interpreted as a percentage
+of physical memory.
+The default is 25% of physical memory.
+.TP
+.BI cacheTime= TIME
+Limit the time that transcoded images will be cached in memory by
+\fBgstfs-ng\fR after transcoding them.
+\fITIME\fP should be specified as a number of seconds
+but may also have a single character suffix to suggest scale
+(m, h, d, w, y to multiply by one minute, hour, day, week, year).
+The default is 1 hour.
+.TP
+.BI cachePersist= PERSIST
+Specify a directory where cached images will persist after they are
+removed from memory.
+This persistant cache will last between \fBgstfs-ng\fR sessions
+so that transcoding need not be redone.
+Cached files in the \fIPERSIST\fP directory are named
+using \fBstat -c %d.%i.%Y\fP reported identifiers from the referencing source file.
+Note that the reference will not break if the source file is moved or
+renamed but will if it is modified (as it should be).
+At the beginning of a \fBgstfs-ng\fR session, the \fIPERSIST\fR directory
+will be purged of unreferenced images.
+.TP
+.BI trueSize
+When the size of a file that has yet to be transcoded is requested,
+this option requests that the transcoding be performed and allowed to
+complete so that the true size of the file can be reported.
+The default is to report 0 or, if transcoding is in progress,
+the size of the transcoding so far.
+.TP
+.BI readAhead= READAHEAD
+As files to be transcoded are "touched"
+by attribute requests or directory listings,
+start the transcoding operation in the background.
+\fIREADAHEAD\fP limits the number of such operations that can be happening
+concurrently.
+The default is 16.
+
+To be effective, \fIREADAHEAD\fP should be tuned along with
+cache \fICOUNT\fP, \fIMEMORY\fP, \fITIME\fP and \fIPERSIST\fP settings
+so that the images generated by read ahead operations are in
+the image cache when needed.
+
+.SH EXAMPLES
+Mount /source on /target
+using an identity gstreamer pipeline to transcode flac to flac files:
+.RS
+.sp
+.nf
+gstfs-ng -o source=flac,target=flac,pipeline= /source /target
+.fi
+.sp
+.RE
+or
+.RS
+.sp
+.nf
+mount -t gstfs-ng -o source=flac,target=flac,pipeline= /source /target
+.fi
+.sp
+.RE
+/etc/fstab entry for the above:
+.RS
+.sp
+.nf
+/source /target gstfs\-ng source=flac,target=flac,pipeline= 0 0
+.fi
+.sp
+.RE
+Unmount /target:
+.RS
+.sp
+.nf
+fusermount -u /target
+.fi
+.sp
+.RE
+The above example is useless except to illustrate the base form for all usage.
+That is, it specifies a minimal transcode mapping operation in the form
+required by \fBgstfs-ng\fR.
+It is simple to grow this example, however, by supplying a non-empty
+\fIPIPELINE\fP and specifying \fISOURCE\fP and \fITARGET\fP appropriately.
+Multiple such mappings can be added as long as the mapping is one-to-one.
+
+For mounts via \fB/etc/fstab\fR or the \fBmount\fR command,
+\fBgstfs-ng\fR must be installed as \fB/sbin/mount.gstfs-ng\fR
+as this is where \fBmount\fR will go to mount filesystems
+of this type.
+
+To synchronize the /target directory with a like-named directory
+under a a FAT file system mounted at, say, /media/thumb/,
+the following \fBrsync\fR command might be
+used:
+.RS
+.sp
+.nf
+rsync -av --modify-window=1 --delete /target /media/thumb/
+.fi
+.sp
+.RE
+
+.SH ACKNOWLEDGEMENT
+Ross Tyler thanks Bob Copeland whose original concept and implementation
+inspired this one.
+.SH SEE ALSO
+.BR gst-inspect
+.BR gst-launch
