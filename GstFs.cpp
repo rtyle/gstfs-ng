@@ -305,7 +305,10 @@ int GstFs::readdir(
 	    targetPath += target.get();
 	    readerFactory->readAhead(targetPath.c_str());
 	}
-	if (filler(buffer, target.get(), 0, 0)) break;
+	struct stat st;
+	memset(&st, 0, sizeof st);
+	st.st_ino = dirent->d_ino;
+	if (filler(buffer, target.get(), &st, 0)) break;
     }
     return 0;
 }
