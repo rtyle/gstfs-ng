@@ -95,7 +95,7 @@ namespace Transcode {
 	// put pipeline_ in a fdsrc/fdsink sandwich
 	char * pipeline	= strdup(
 	    (std::string(
-		    #if 0
+		    #if 1
 			// this is the more elegant solution
 			// which will allow us to use an fd directly
 			// but will cause FLAC metatada to be lost

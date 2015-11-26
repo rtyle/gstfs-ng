@@ -1,5 +1,5 @@
 PRODUCT=gstfs-ng
-VERSION=0.8
+VERSION=1.0
 PACKAGE=$(PRODUCT)-$(VERSION)
 
 INCS=\
@@ -37,9 +37,9 @@ OBJS=$(SRCS:.cpp=.o)
 
 FILES=$(INCS) $(SRCS) Makefile COPYING gstfs-ng.8 .project .cproject ChangeLog gstfs-ng.monitor
 
-PKGS=fuse glib-2.0 gstreamer-0.10
+PKGS=fuse glib-2.0 gstreamer-1.0
 
-LIBS=-lboost_thread-mt -lpthread $$(pkg-config --libs $(PKGS))
+LIBS=-lboost_thread -lpthread $$(pkg-config --libs $(PKGS))
 
 CXXFLAGS+=-g -Wall -D_FILE_OFFSET_BITS=64 -DFUSE_USE_VERSION=26 $$(pkg-config --cflags $(PKGS))
 
