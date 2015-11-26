@@ -1,3 +1,14 @@
+0.8
+
+Fallback to an existing target encoding
+when source for transcoding is not available.
+For example, if a flac to mp3 transcoding is being performed
+an existing mp3 encoding will be used when no flac is available to transcode.
+
+Improved man page.
+
+Added gstfs-ng.monitor tool that polls for gstfs-ng transcoding activity.
+
 0.7
 
 Declare virtual destructor for ImageReader.

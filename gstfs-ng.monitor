@@ -1,0 +1,25 @@
+#!/bin/bash
+
+while :; do
+    pids="$(pgrep gstfs-ng)"
+    message=
+    if [ -n "$pids" ]; then
+	sources=$(ps h -o args $pids \
+	    | tr ', ' \\n \
+	    | awk -F= '$1 == "source" {print $2}' \
+	    | sort -u \
+	    | tr \\n \| \
+	    | rev | cut -c 2- | rev
+	)
+	message=$(echo "$pids" \
+	    | xargs -r -n 1 -I% find /proc/%/fd -type l \
+	    | xargs -r -n 1 readlink -f \
+	    | egrep '\.('$sources')$' \
+	    | sort -u \
+	    | nl \
+	)
+    fi
+    clear
+    echo "$message"
+    sleep 1
+done

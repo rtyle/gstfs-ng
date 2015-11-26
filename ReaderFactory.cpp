@@ -77,6 +77,12 @@ ReaderFactory::~ReaderFactory() throw() {
     // implicit destruction of our readAheadRelease member.
 }
 
+/// For use as a custom deleter for a boost::shared_ptr
+/// when we want nothing to happen.
+struct Noop {
+    void operator()(void const *) const {}
+};
+
 Reader * ReaderFactory::open(char const * path) throw() {
     // with the cooperation of a potential Reader to be constructed
     // guarantee a call to this->readAheadIsDone(Reader *)
@@ -85,11 +91,12 @@ Reader * ReaderFactory::open(char const * path) throw() {
     {
 	boost::mutex::scoped_lock lock(*this);
 
+	bool exists;
 	struct stat st;
 
 	// get stat for path under base.
 	// if successful and it is a directory then we are done.
-	if ((-1 != fstatat(baseFd, path, &st, 0))
+	if ((exists = (-1 != fstatat(baseFd, path, &st, 0)))
 		&& S_ISDIR(st.st_mode))
 	    return 0;
 
@@ -98,8 +105,20 @@ Reader * ReaderFactory::open(char const * path) throw() {
 	boost::shared_ptr<char const> source(
 	    transcodeMapping->sourceFrom(path, &transcodeElement));
 	if (source.get() != path) {
-	    if (-1 == fstatat(baseFd, source.get(), &st, 0))
-		return 0;
+	    // there is a mapping to this target
+	    struct stat st_;
+	    if (-1 != fstatat(baseFd, source.get(), &st_, 0)) {
+		// there is a source for this mapping, use its stat
+		st = st_;
+	    } else {
+		// there is no source for this mapping
+		if (!exists) {
+		    // path under base doesn't exist either
+		    return 0;
+		}
+		// revert to path under base as source
+		source.reset(path, Noop());
+	    }
 	}
 
 	// this is how we will index the file
@@ -189,8 +208,15 @@ int ReaderFactory::stat(char const * path, struct stat * st) throw() {
 	    transcodeMapping->sourceFrom(path, &transcodeElement));
 	if (source.get() == path) return exists ? 0 : -errno;
 
-	// if we cannot stat the source, return the failure
-	if (-1 == fstatat(baseFd, source.get(), st, 0)) return -errno;
+	// there is a mapping to this target
+	struct stat st_;
+	if (-1 != fstatat(baseFd, source.get(), &st_, 0)) {
+	    // there is a source for this mapping, use its stat
+	    *st = st_;
+	} else {
+	    // there is no source for this mapping, return what we have
+	    return exists ? 0: -errno;
+	}
 
 	// this is how we will index the file
 	FileIndex fileIndex(*st);

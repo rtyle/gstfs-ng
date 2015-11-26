@@ -63,6 +63,8 @@ are only limited by the capabilities of
 (audio/video/tagging formats supported by)
 the installed gstreamer implementation.
 .SH OPTIONS
+Options are delimited by commas.
+Commas embedded in option values must be escaped with a preceding backslash.
 Below is a summary of each mount \fIoption\fP that \fBgstfs-ng\fR accepts.
 .TP
 .BI source= SOURCE
@@ -73,12 +75,22 @@ will appear under the \fBgstfs-ng\fR filesystem as transcoded files with the
 .TP
 .BI target= TARGET
 Set the target file extention in a transcode mapping.
+
+\fITARGET\fP and \fISOURCE\fP can be the same value.
+One might do this with a \fIPIPELINE\fP
+that changes the quality or size of an encoding.
+For example, a \fIPIPELINE\fP that takes source jpeg files
+and scales them to target jpeg files (see below).
 .TP
 .BI pipeline= PIPELINE
 \fIPIPELINE\fP is a gstreamer parseable pipeline description.
 These descriptions typically contain whitespace that might need to
 escaped from a shell/interpreter.
+Properties of gstreamer elements \fBmust\fR be surrounded by whitespace.
 Spaces in fstab fields must be represented as \\040 (octal for ASCII space).
+Commas embedded in a \fBgstfs-ng\fR pipeline option value
+must be escaped with a preceding backslash.
+
 For testing, one might specify an empty pipeline
 for an identity transcoding.
 
@@ -94,7 +106,17 @@ A transcoding pipeline that converts ogg/vorbis to mp3
 might be specified as follows:
 .sp
 .nf
-oggdemux ! vorbisdec ! audioconvert ! lame
+oggdemux ! vorbisdec ! audioconvert ! lamemp3enc ! id3v2mux
+.fi
+.sp
+
+A transcoding pipeline that scales jpeg images to a specified width and height
+might be specified as follows
+(as a pipeline option value to \fBgstfs-ng\fR,
+the commas will have to be escaped with preceding backslashes):
+.sp
+.nf
+jpegdec ! videoscale ! video/x-raw-yuv,width=300,height=300 ! jpegenc
 .fi
 .sp
 Use \fBgst-inspect\fR to inspect the properties

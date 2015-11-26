@@ -1,5 +1,5 @@
 PRODUCT=gstfs-ng
-VERSION=0.7
+VERSION=0.8
 PACKAGE=$(PRODUCT)-$(VERSION)
 
 INCS=\
@@ -35,7 +35,7 @@ SRCS=\
 
 OBJS=$(SRCS:.cpp=.o)
 
-FILES=$(INCS) $(SRCS) Makefile COPYING gstfs-ng.8 .project .cproject ChangeLog
+FILES=$(INCS) $(SRCS) Makefile COPYING gstfs-ng.8 .project .cproject ChangeLog gstfs-ng.monitor
 
 PKGS=fuse glib-2.0 gstreamer-0.10
 
