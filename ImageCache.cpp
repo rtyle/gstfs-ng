@@ -251,7 +251,7 @@ namespace ImageCache {
 	if (-1 == persistFd) return;
 	std::string name = persistName(fileIndex);
 	std::string temp = name + ".tmp";
-	int fd = openat(persistFd, temp.c_str(), O_CREAT | O_WRONLY);
+	int fd = openat(persistFd, temp.c_str(), O_CREAT | O_WRONLY, 0666);
 	if (-1 == fd) return;
 	bool success;
 	{
