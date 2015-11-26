@@ -19,6 +19,7 @@ private:
     ImageConstPointer imageConstPointer;	///< Image to read
 public:
     ImageReader(FileIndex, ImageConstPointer) throw();
+    virtual ~ImageReader() throw() {}
 
     virtual ssize_t read(char * buffer, size_t size, off_t offset) throw();
 

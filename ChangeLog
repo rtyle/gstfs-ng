@@ -1,0 +1,33 @@
+0.7
+
+Declare virtual destructor for ImageReader.
+
+0.6
+
+Fixed deadlock situation that might occur when a transcoding pipeline executes
+very quickly.
+
+Updated man page with another selinux note.
+
+0.5
+
+Added code to support FUSE use_ino option and updated man page.
+
+Updated man page with selinux notes.
+
+0.4
+
+Fixed mode given to persisted transcoding files.
+
+0.3
+
+Command line options are duplicated as FUSE no longer does this for us.
+
+0.2
+
+First sourceforge release.
+
+0.1
+
+First release.
+Offered to gstfs maintainers as complete rewrite of original code.
