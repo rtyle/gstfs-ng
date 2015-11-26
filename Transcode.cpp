@@ -2,13 +2,15 @@
 /// Definitions in the Transcode namespace of the Transcode::Mapping class
 /// and supporting classes.
 /// <p>
-/// Copyright (c) 2009 Ross Tyler.
+/// Copyright (c) 2015 Ross Tyler.
 /// This file may be copied under the terms of the
 /// GNU Lesser General Public License (LGPL).
 /// See COPYING file for details.
 
 #include <cstring>
 #include <iostream>
+
+#include <gst/gst.h>
 
 #include "Transcode.h"
 #include "Utility.h"
@@ -95,15 +97,15 @@ namespace Transcode {
 	// put pipeline_ in a fdsrc/fdsink sandwich
 	char * pipeline	= strdup(
 	    (std::string(
-		    #if 1
+		    #if GST_CHECK_VERSION(1,0,0)
 			// this is the more elegant solution
 			// which will allow us to use an fd directly
-			// but will cause FLAC metatada to be lost
+			// but will cause FLAC tags to be lost in old versions
 			"fdsrc name=fdsrc ! "
 		    #else
 			// this is a kludgy solution
 			// which will cause us to derive a location from an fd
-			// but will not cause FLAC metadata to be lost
+			// but will not cause FLAC tags to be lost
 			"filesrc name=filesrc ! "
 		    #endif
 		    )
@@ -127,51 +129,51 @@ namespace Transcode {
     }
 
     static char const * newConcatenation(
-    	char const * base, char const * end, char const * extension) throw() {
-        size_t baseLength = end - base;
-        size_t extensionLength = strlen(extension) + 1;
-        char * result = new char[baseLength + extensionLength];
-        memcpy(baseLength + static_cast<char *>(memcpy(result,
+	char const * base, char const * end, char const * extension) throw() {
+	size_t baseLength = end - base;
+	size_t extensionLength = strlen(extension) + 1;
+	char * result = new char[baseLength + extensionLength];
+	memcpy(baseLength + static_cast<char *>(memcpy(result,
 	    base, baseLength)),
 	    extension, extensionLength);
-        return result;
+	return result;
     }
 
     /// For use as a custom deleter for a boost::shared_ptr
     /// when we want nothing to happen.
     struct Noop {
-        void operator()(void const *) const {}
+	void operator()(void const *) const {}
     };
 
     boost::shared_ptr<char const> Mapping::sourceFrom(
 	    char const * path, Element * elementReturn) throw() {
 	ByTargetIndex & byTargetIndex = get<TargetIndex>();
-        char const * extension = path;
-        while ((extension = strchr(extension, '.'))) {
-            ByTargetIndex::iterator it = byTargetIndex.find(++extension);
+	char const * extension = path;
+	while ((extension = strchr(extension, '.'))) {
+	    ByTargetIndex::iterator it = byTargetIndex.find(++extension);
 	    if (it != byTargetIndex.end()) {
 		Element const element = *it;
 		if (elementReturn) *elementReturn = element;
 		return boost::shared_ptr<char const>(
 		    newConcatenation(path, extension, element.source));
 	    }
-        }
-        return boost::shared_ptr<char const>(path, Noop());
+	}
+	return boost::shared_ptr<char const>(path, Noop());
     }
 
     boost::shared_ptr<char const> Mapping::targetFrom(
 	    char const * path, Element * elementReturn) throw() {
 	BySourceIndex & bySourceIndex = get<SourceIndex>();
-        char const * extension = path;
-        while ((extension = strchr(extension, '.'))) {
-            BySourceIndex::iterator it = bySourceIndex.find(++extension);
+	char const * extension = path;
+	while ((extension = strchr(extension, '.'))) {
+	    BySourceIndex::iterator it = bySourceIndex.find(++extension);
 	    if (it != bySourceIndex.end()) {
 		Element const element = *it;
 		if (elementReturn) *elementReturn = element;
 		return boost::shared_ptr<char const>(
 		    newConcatenation(path, extension, element.target));
 	    }
-        }
-        return boost::shared_ptr<char const>(path, Noop());
+	}
+	return boost::shared_ptr<char const>(path, Noop());
     }
 }

@@ -1,0 +1,56 @@
+gstfs-ng
+
+A FUSE-based file system that works as a dynamic gstreamer-based transcoder
+over an existing directory.
+For example, this can make your FLAC music archive
+appear as an MP3 or OGG archive.
+Transcodings can be cached in memory and persisted to disk.
+
+See COPYING for license, ChangeLog for history.
+
+See man page (man ./gstfs-ng.8) for details,
+from which the following is extracted:
+
+       gstfs-ng  is  a  read-only  filesystem  that  acts as a gstreamer-based
+       transcoding facade (visible at MOUNTPOINT) over an existing  BASEDIREC‐
+       TORY tree.
+
+       Perhaps gstfs-ng is best explained by an example use case:
+
+       A  music  archive stored on a computer might enjoy ample space for disk
+       storage and, therefore, the archive  maintainer  might  choose  a  high
+       quality  lossless encoding to store content.  For lack of storage, how‐
+       ever, the same archive might not fit on a  portable  media  player.   A
+       portable  media  player might require a lower quality lossy encoding to
+       store the complete archive.
+
+       In order to balance the needs between quality and size,  one  might  be
+       tempted  to  store both a high quality lossless and a low quality lossy
+       archive on their computer.  This, of course, requires additional  stor‐
+       age  on  the computer and presents the archive maintainer with synchro‐
+       nization problems.
+
+       gstfs-ng helps by allowing one archive type appear as another.  In this
+       case,  it  allows the large high quality archive to appear as a smaller
+       low quality one.  To make this happen, gstfs-ng must be told where  the
+       base  of  the  original archive is, where the transcoded archive should
+       appear and the transcodings that should take place between them.
+
+       The transcodings that are to occur are specified as transcode mappings.
+       Each mapping must specify a source extension (e.g. source=flac), a tar‐
+       get extension (e.g. target=ogg) and a  gstreamer  pipeline  description
+       that can be used to perform the transcoding.  gstfs-ng can perform many
+       such mappings at once as long as the source to target file name  exten‐
+       sion  mapping  is one-to-one.  gstfs-ng creates a new transcode mapping
+       as soon as it has all three components and then prepares to  build  the
+       next.
+
+       While  gstfs-ng  relies on fuse (Filesystem in Userspace) technology to
+       allow transcoded  files  to  appear  as  a  filesystem,  it  relies  on
+       gstreamer  technology to actually perform the transcodings.  This means
+       that that type of transcodings that gstfs-ng can perform are only  lim‐
+       ited  by the capabilities of (audio/video/tagging formats supported by)
+       the installed gstreamer implementation.
+
+       gstfs-ng is dependent on gstreamer-1.0 interfaces as of  gstfs-ng  ver‐
+       sion 1.0.

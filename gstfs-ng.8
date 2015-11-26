@@ -101,7 +101,7 @@ A transcoding pipeline that converts a flac audio encoding to
 ogg/vorbis might be specified as follows:
 .sp
 .nf
-flacdec ! audioconvert ! vorbisenc ! oggmux
+flacparse ! flacdec ! audioconvert ! vorbisenc ! oggmux
 .fi
 .sp
 
@@ -119,7 +119,7 @@ might be specified as follows
 the commas will have to be escaped with preceding backslashes):
 .sp
 .nf
-jpegdec ! videoscale ! video/x-raw-yuv,width=300,height=300 ! jpegenc
+jpegdec ! videoscale ! video/x-raw,width=300,height=300 ! jpegenc
 .fi
 .sp
 Use \fBgst-inspect\fR to inspect the properties
