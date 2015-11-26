@@ -70,7 +70,9 @@ public:
     /// done function object when done successfully or otherwise.
     TranscodeFileReader(
 	FileIndex fileIndex, int fd,
-	char const * pipeline, boost::function<void (Reader *)> done)
+	char const * pipeline,
+	boost::shared_ptr<void const> & doneGuarantee,
+	boost::function<void (Reader *)> done)
 	throw();
 
     /// Destroy the TranscodeFileReader by aborting any transcoding in process

@@ -78,68 +78,76 @@ ReaderFactory::~ReaderFactory() throw() {
 }
 
 Reader * ReaderFactory::open(char const * path) throw() {
-    boost::mutex::scoped_lock lock(*this);
+    // with the cooperation of a potential Reader to be constructed
+    // guarantee a call to this->readAheadIsDone(Reader *)
+    // after we release our lock on this
+    boost::shared_ptr<void const> doneGuarantee(static_cast<void const *>(0));
+    {
+	boost::mutex::scoped_lock lock(*this);
 
-    struct stat st;
+	struct stat st;
 
-    // get stat for path under base.
-    // if successful and it is a directory then we are done.
-    if ((-1 != fstatat(baseFd, path, &st, 0))
-	    && S_ISDIR(st.st_mode))
-	return 0;
-
-    // find the source for this reader and if different stat the source
-    Transcode::Element transcodeElement;
-    boost::shared_ptr<char const> source(
-	transcodeMapping->sourceFrom(path, &transcodeElement));
-    if (source.get() != path) {
-	if (-1 == fstatat(baseFd, source.get(), &st, 0))
+	// get stat for path under base.
+	// if successful and it is a directory then we are done.
+	if ((-1 != fstatat(baseFd, path, &st, 0))
+		&& S_ISDIR(st.st_mode))
 	    return 0;
-    }
 
-    // this is how we will index the file
-    FileIndex fileIndex(st);
-
-    // if there is currently a Reader for this FileIndex, we will use it
-    Map::iterator it = map.find(fileIndex);
-    Reader * reader = it == map.end() ? 0 : it->second;
-    if (!reader) {
-	// there is no reader so create one.
-
-	reader = imageCache.open(fileIndex);
-	if (!reader) {
-	    // we can not read from the imageCache
-
-	    // if we cannot open the file, we are done.
-	    int fileFd = openat(baseFd, source.get(), O_RDONLY);
-	    if (-1 == fileFd) return 0;
-
-	    if (source.get() == path) {
-		reader = new FileReader(fileIndex, fileFd);
-	    } else {
-		if (readAheadCount < readAheadLimit) {
-		    // the caller and readAheadRelease are responsible for it
-		    reader = new TranscodeFileReader(fileIndex, fileFd,
-			transcodeElement.pipeline,
-			boost::bind(&ReaderFactory::readAheadIsDone, this, _1));
-		    ++*reader;
-		    ++readAheadCount;
-		} else {
-		    // only the caller is responsible for it
-		    reader = new TranscodeFileReader(fileIndex, fileFd,
-			transcodeElement.pipeline,
-			boost::bind(&ReaderFactory::nonReadAheadIsDone, this, _1));
-		}
-	    }
+	// find the source for this reader and if different stat the source
+	Transcode::Element transcodeElement;
+	boost::shared_ptr<char const> source(
+	    transcodeMapping->sourceFrom(path, &transcodeElement));
+	if (source.get() != path) {
+	    if (-1 == fstatat(baseFd, source.get(), &st, 0))
+		return 0;
 	}
 
-	// remember this new reader for others
-	map.insert(Map::value_type(fileIndex, reader));
-    }
+	// this is how we will index the file
+	FileIndex fileIndex(st);
 
-    // our caller is responsible for the reader
-    ++*reader;
-    return reader;
+	// if there is currently a Reader for this FileIndex, we will use it
+	Map::iterator it = map.find(fileIndex);
+	Reader * reader = it == map.end() ? 0 : it->second;
+	if (!reader) {
+	    // there is no reader so create one.
+
+	    reader = imageCache.open(fileIndex);
+	    if (!reader) {
+		// we can not read from the imageCache
+
+		// if we cannot open the file, we are done.
+		int fileFd = openat(baseFd, source.get(), O_RDONLY);
+		if (-1 == fileFd) return 0;
+
+		if (source.get() == path) {
+		    reader = new FileReader(fileIndex, fileFd);
+		} else {
+		    if (readAheadCount < readAheadLimit) {
+			// the caller and readAheadRelease are responsible for it
+			reader = new TranscodeFileReader(fileIndex, fileFd,
+			    transcodeElement.pipeline,
+			    doneGuarantee,
+			    boost::bind(&ReaderFactory::readAheadIsDone, this, _1));
+			++*reader;
+			++readAheadCount;
+		    } else {
+			// only the caller is responsible for it
+			reader = new TranscodeFileReader(fileIndex, fileFd,
+			    transcodeElement.pipeline,
+			    doneGuarantee,
+			    boost::bind(&ReaderFactory::nonReadAheadIsDone, this, _1));
+		    }
+		}
+	    }
+
+	    // remember this new reader for others
+	    map.insert(Map::value_type(fileIndex, reader));
+	}
+
+	// our caller is responsible for the reader
+	++*reader;
+	return reader;
+    }
 }
 
 void ReaderFactory::release(Reader * reader) throw() {
@@ -156,6 +164,10 @@ void ReaderFactory::release(Reader * reader) throw() {
 
 int ReaderFactory::stat(char const * path, struct stat * st) throw() {
     Reader * reader;
+    // with the cooperation of a potential Reader to be constructed
+    // guarantee a call to this->readAheadIsDone(Reader *)
+    // after we release our lock on this
+    boost::shared_ptr<void const> doneGuarantee(static_cast<void const *>(0));
     {
 	boost::mutex::scoped_lock lock(*this);
 
@@ -214,6 +226,7 @@ int ReaderFactory::stat(char const * path, struct stat * st) throw() {
 	    // construct a new TranscodeFileReader
 	    reader = new TranscodeFileReader(fileIndex, fileFd,
 		transcodeElement.pipeline,
+		doneGuarantee,
 		boost::bind(&ReaderFactory::readAheadIsDone, this, _1));
 	    map.insert(Map::value_type(fileIndex, reader));
 
@@ -241,50 +254,57 @@ int ReaderFactory::stat(char const * path, struct stat * st) throw() {
 }
 
 void ReaderFactory::readAhead(char const * path) throw() {
-    boost::mutex::scoped_lock lock(*this);
+    // with the cooperation of a potential Reader to be constructed
+    // guarantee a call to this->readAheadIsDone(Reader *)
+    // after we release our lock on this
+    boost::shared_ptr<void const> doneGuarantee(static_cast<void const *>(0));
+    {
+	boost::mutex::scoped_lock lock(*this);
 
-    // if we are at the readAheadLimit then return
-    if (!(readAheadCount < readAheadLimit)) return;
+	// if we are at the readAheadLimit then return
+	if (!(readAheadCount < readAheadLimit)) return;
 
-    struct stat st;
+	struct stat st;
 
-    // get stat for path under base.
-    // if successful and it is a directory then we are done.
-    if ((-1 != fstatat(baseFd, path, &st, 0))
-	    && S_ISDIR(st.st_mode))
-	return;
+	// get stat for path under base.
+	// if successful and it is a directory then we are done.
+	if ((-1 != fstatat(baseFd, path, &st, 0))
+		&& S_ISDIR(st.st_mode))
+	    return;
 
-    // if there is no mapping to this target, return
-    Transcode::Element transcodeElement;
-    boost::shared_ptr<char const> source(
-	transcodeMapping->sourceFrom(path, &transcodeElement));
-    if (source.get() == path) return;
+	// if there is no mapping to this target, return
+	Transcode::Element transcodeElement;
+	boost::shared_ptr<char const> source(
+	    transcodeMapping->sourceFrom(path, &transcodeElement));
+	if (source.get() == path) return;
 
-    // if we cannot stat the source, return
-    if (-1 == fstatat(baseFd, source.get(), &st, 0)) return;
+	// if we cannot stat the source, return
+	if (-1 == fstatat(baseFd, source.get(), &st, 0)) return;
 
-    // this is how we will index the file
-    FileIndex fileIndex(st);
+	// this is how we will index the file
+	FileIndex fileIndex(st);
 
-    // if there is an image cached for this FileIndex, return
-    if (0 <= imageCache.sizeOf(fileIndex)) return;
+	// if there is an image cached for this FileIndex, return
+	if (0 <= imageCache.sizeOf(fileIndex)) return;
 
-    // if there is currently a Reader for this FileIndex, return
-    if (map.find(fileIndex) != map.end()) return;
+	// if there is currently a Reader for this FileIndex, return
+	if (map.find(fileIndex) != map.end()) return;
 
-    // if we cannot open the file, return
-    int fileFd = ::openat(baseFd, source.get(), O_RDONLY);
-    if (-1 == fileFd) return;
+	// if we cannot open the file, return
+	int fileFd = ::openat(baseFd, source.get(), O_RDONLY);
+	if (-1 == fileFd) return;
 
-    // construct a new TranscodeFileReader
-    Reader * reader = new TranscodeFileReader(fileIndex, fileFd,
-	transcodeElement.pipeline,
-	boost::bind(&ReaderFactory::readAheadIsDone, this, _1));
-    map.insert(Map::value_type(fileIndex, reader));
+	// construct a new TranscodeFileReader
+	Reader * reader = new TranscodeFileReader(fileIndex, fileFd,
+	    transcodeElement.pipeline,
+	    doneGuarantee,
+	    boost::bind(&ReaderFactory::readAheadIsDone, this, _1));
+	map.insert(Map::value_type(fileIndex, reader));
 
-    // readAheadRelease is responsible for it
-    ++*reader;
-    ++readAheadCount;
+	// readAheadRelease is responsible for it
+	++*reader;
+	++readAheadCount;
+    }
 }
 
 void ReaderFactory::readAheadIsDone(Reader * reader) throw() {

@@ -21,6 +21,7 @@
 TranscodeFileReader::TranscodeFileReader(
     FileIndex fileIndex_, int fd_,
     char const * pipelineDescription,
+    boost::shared_ptr<void const> & doneGuarantee,
     boost::function<void (Reader *)> done) throw()
 :
     FileReader(fileIndex_, fd_),
@@ -29,8 +30,7 @@ TranscodeFileReader::TranscodeFileReader(
 {
     // guarantee a call to the done function object until
     // we transfer the guarantee to our imageBuilderThread
-    boost::shared_ptr<void const> doneGuarantee(
-	static_cast<void const *>(0), boost::bind(done, this));
+    doneGuarantee.reset(static_cast<void const *>(0), boost::bind(done, this));
 
     // construct our GstPipeline from the pipelineDescription
     GError * error = 0;

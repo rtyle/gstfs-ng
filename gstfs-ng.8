@@ -225,6 +225,7 @@ The following SELinux audit events might be seen until policy is changed:
         avc:  denied  { create } scontext=system_u:system_r:mount_t:s0 tcontext=system_u:object_r:file_t:s0 tclass=file
         avc:  denied  { remove_name } scontext=system_u:system_r:mount_t:s0 tcontext=unconfined_u:object_r:file_t:s0 tclass=dir
         avc:  denied  { rename } scontext=system_u:system_r:mount_t:s0 tcontext=system_u:object_r:file_t:s0 tclass=file
+	avc:  denied  { unlink } scontext=system_u:system_r:mount_t:s0 tcontext=system_u:object_r:file_t:s0 tclass=file
 
 Pipe these events to \fBaudit2allow -M mountGstfs-ng\fR
 to create an SELinux policy package
