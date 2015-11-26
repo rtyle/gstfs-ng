@@ -1,3 +1,7 @@
+1.0
+
+Transition from gstreamer-0.10 to gstreamer-1.0.
+
 0.8
 
 Fallback to an existing target encoding
