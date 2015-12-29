@@ -56,6 +56,7 @@ private:
     };
 
     GstElement * pipeline;	///< Gstreamer pipeline to build image
+    GstBus * bus;		///< Gstreamer pipeline bus
     ImageBuilderThread * imageBuilderThread;	///< Thread to build image
 
     gboolean warning(GstBus *, GstMessage *) throw();

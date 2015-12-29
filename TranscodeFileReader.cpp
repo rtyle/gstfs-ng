@@ -26,6 +26,7 @@ TranscodeFileReader::TranscodeFileReader(
 :
     FileReader(fileIndex_, fd_),
     pipeline(0),
+    bus(0),
     imageBuilderThread(0)
 {
     // guarantee a call to the done function object until
@@ -41,52 +42,56 @@ TranscodeFileReader::TranscodeFileReader(
     }
     if (!pipeline) return;
 
-    boost::shared_ptr<GstElement> fdsrc(
-	gst_bin_get_by_name(GST_BIN(pipeline), "fdsrc"),
-	gst_object_unref);
-    if (fdsrc) {
-	// set the fd property of the fdsrc GstElement
-	// (named fdsrc) to the source fd
-	g_object_set(G_OBJECT(fdsrc.get()), "fd", fd, NULL);
-    } else {
-	boost::shared_ptr<GstElement> filesrc(
-	    gst_bin_get_by_name(GST_BIN(pipeline), "filesrc"),
+    {
+	boost::shared_ptr<GstElement> fdsrc(
+	    gst_bin_get_by_name(GST_BIN(pipeline), "fdsrc"),
 	    gst_object_unref);
-	if (filesrc) {
-	    // set the location property of the filesrc GstElement
-	    // (named filesrc) to the source /proc/<pid>/fd/<fd> file
-	    std::ostringstream location;
-	    location << "/proc/" << getpid() << "/fd/" << fd;
-	    g_object_set(G_OBJECT(filesrc.get()),
-		"location", location.str().c_str(), NULL);
+	if (fdsrc) {
+	    // set the fd property of the fdsrc GstElement
+	    // (named fdsrc) to the source fd
+	    g_object_set(G_OBJECT(fdsrc.get()), "fd", fd, NULL);
 	} else {
-	    std::cerr << pipelineDescription
-		<< ": no element named fdsrc or filesrc" << std::endl;
-	    return;
+	    boost::shared_ptr<GstElement> filesrc(
+		gst_bin_get_by_name(GST_BIN(pipeline), "filesrc"),
+		gst_object_unref);
+	    if (filesrc) {
+		// set the location property of the filesrc GstElement
+		// (named filesrc) to the source /proc/<pid>/fd/<fd> file
+		std::ostringstream location;
+		location << "/proc/" << getpid() << "/fd/" << fd;
+		g_object_set(G_OBJECT(filesrc.get()),
+		    "location", location.str().c_str(), NULL);
+	    } else {
+		std::cerr << pipelineDescription
+		    << ": no element named fdsrc or filesrc" << std::endl;
+		return;
+	    }
 	}
     }
 
-    // set the sync property of the fdsink GstElement (named fdsink) to false
-    boost::shared_ptr<GstElement> fdsink(
-	gst_bin_get_by_name(GST_BIN(pipeline), "fdsink"),
-	gst_object_unref);
-    if (!fdsink) {
-	std::cerr << pipelineDescription
-	    << ": no element named fdsink" << std::endl;
-	return;
-    }
-    g_object_set(G_OBJECT(fdsink.get()), "sync", 0, NULL);
-
-    // create a pipe for consuming the output of the pipeline
     int pipe[2];
-    if (-1 == ::pipe(pipe)) {
-	std::cerr << "pipe failed" << std::endl;
-	return;
-    }
+    {
+	// set the sync property of the fdsink GstElement (named fdsink) to false
+	boost::shared_ptr<GstElement> fdsink(
+	    gst_bin_get_by_name(GST_BIN(pipeline), "fdsink"),
+	    gst_object_unref);
+	if (!fdsink) {
+	    std::cerr << pipelineDescription
+		<< ": no element named fdsink" << std::endl;
+	    return;
+	}
+	g_object_set(G_OBJECT(fdsink.get()), "sync", 0, NULL);
 
-    // set the fd property of the fdsink GstElement (named fdsink)
-    // to the write side of the pipe.
-    g_object_set(G_OBJECT(fdsink.get()), "fd", pipe[1], NULL);
+	// create a pipe for consuming the output of the pipeline
+	if (-1 == ::pipe(pipe)) {
+	    std::cerr << "pipe failed" << std::endl;
+	    return;
+	}
+
+	// set the fd property of the fdsink GstElement (named fdsink)
+	// to the write side of the pipe.
+	g_object_set(G_OBJECT(fdsink.get()), "fd", pipe[1], NULL);
+    }
 
     // create an ImageBuilderThread to consume what is output through the pipe,
     // transfer pipe ownership and our doneGuarantee to it
@@ -96,15 +101,13 @@ TranscodeFileReader::TranscodeFileReader(
 
     // make sure that we are notified when interesting things happen
     {
-	boost::shared_ptr<GstBus> bus(
-	    gst_pipeline_get_bus(GST_PIPELINE(pipeline)),
-	    gst_object_unref);
-	gst_bus_add_signal_watch(bus.get());
-	g_signal_connect(bus.get(), "message::warning",
+	bus = gst_pipeline_get_bus(GST_PIPELINE(pipeline));
+	gst_bus_add_signal_watch(bus);
+	g_signal_connect(bus, "message::warning",
 	    G_CALLBACK(warning_), this);
-	g_signal_connect(bus.get(), "message::error",
+	g_signal_connect(bus, "message::error",
 	    G_CALLBACK(error_), this);
-	g_signal_connect(bus.get(), "message::eos",
+	g_signal_connect(bus, "message::eos",
 	    G_CALLBACK(ImageBuilderThread::eos_), this->imageBuilderThread);
     }
 
@@ -150,6 +153,10 @@ gboolean TranscodeFileReader::error(GstBus * bus, GstMessage * message) throw() 
 		== gst_element_set_state(pipeline, GST_STATE_NULL)) {
 	    // block until async state change completes
 	    gst_element_get_state(pipeline, 0, 0, GST_CLOCK_TIME_NONE);
+	}
+	if (bus) {
+	    gst_bus_remove_signal_watch(bus);
+	    gst_object_unref(bus);
 	}
 	gst_object_unref(pipeline);
     }
