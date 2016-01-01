@@ -3,6 +3,7 @@ VERSION=1.0
 PACKAGE=$(PRODUCT)-$(VERSION)
 
 INCS=\
+	Cwd.h\
 	Exception.h\
 	FileIndex.h\
 	FileReader.h\
@@ -20,6 +21,7 @@ INCS=\
 	readlink.h\
 
 SRCS=\
+	Cwd.cpp\
 	FileIndex.cpp\
 	FileReader.cpp\
 	GstFs.cpp\

@@ -23,6 +23,8 @@ boost::shared_ptr<char const> readlink(char const * link)
 	throw (Exception::Error) {
     // the trouble with the system-supplied readlink(2) is that one cannot
     // know how large the result is going to be.
+    // st_size returned from lstat(2) works only on POSIX compliant file systems
+    // and procfs is not POSIX compliant.
     // start with a reasonable size then try successively larger ones,
     // by factors of 2,until one is large enough
     // and then return a trimmed result.
@@ -55,6 +57,6 @@ boost::shared_ptr<char const> readlink(char const * link)
 boost::shared_ptr<char const> readlink(int fd) throw (Exception::Error) {
     // links for file descriptors are found in procfs
     std::ostringstream out;
-    out << "/proc/" << getpid() << "/fd/" << fd;
+    out << "/proc/self/fd/" << fd;
     return readlink(out.str().c_str());
 }

@@ -13,8 +13,11 @@
 #include <glib.h>
 
 #include <boost/bind.hpp>
+#include <boost/scoped_ptr.hpp>
 #include <boost/shared_ptr.hpp>
 
+#include "readlink.h"
+#include "Cwd.h"
 #include "TranscodeFileReader.h"
 #include "Utility.h"
 
@@ -32,6 +35,22 @@ TranscodeFileReader::TranscodeFileReader(
     // guarantee a call to the done function object until
     // we transfer the guarantee to our imageBuilderThread
     doneGuarantee.reset(static_cast<void const *>(0), boost::bind(done, this));
+
+    // resolve the location of/from fd
+    boost::shared_ptr<char const> locationShared = readlink(fd);
+    char const * location = locationShared.get();
+
+    // resolve the location's directory
+    // and make it current during this scope.
+    // this allows elements in the pipeline to locate files relatively
+    // but will also effect relative components of GST_PLUGIN_PATH
+    char const * slash = strrchr(location, '/');
+    size_t directoryLength = slash ? slash - location : strlen(location);
+    char * directory = new char[directoryLength + 1];
+    boost::scoped_ptr<char> directoryScoped(directory);
+    memcpy(directory, location, directoryLength);
+    directory[directoryLength] = 0;
+    CwdSynchronized cwd(directory);
 
     // construct our GstPipeline from the pipelineDescription
     GError * error = 0;
@@ -56,11 +75,9 @@ TranscodeFileReader::TranscodeFileReader(
 		gst_object_unref);
 	    if (filesrc) {
 		// set the location property of the filesrc GstElement
-		// (named filesrc) to the source /proc/<pid>/fd/<fd> file
-		std::ostringstream location;
-		location << "/proc/" << getpid() << "/fd/" << fd;
+		// (named filesrc) to the source location
 		g_object_set(G_OBJECT(filesrc.get()),
-		    "location", location.str().c_str(), NULL);
+		    "location", location, NULL);
 	    } else {
 		std::cerr << pipelineDescription
 		    << ": no element named fdsrc or filesrc" << std::endl;
