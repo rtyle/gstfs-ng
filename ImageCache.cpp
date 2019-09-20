@@ -257,7 +257,7 @@ namespace ImageCache {
 	{
 	    __gnu_cxx::stdio_filebuf<char> buffer(fd, std::ios::out);
 	    std::ostream out(&buffer);
-	    success = (out << *image);
+	    success = (out << *image).good();
 	    // stdio_filebuf destructor will close fd
 	}
 	if (success) {
