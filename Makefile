@@ -43,7 +43,7 @@ PKGS=fuse glib-2.0 gstreamer-1.0
 
 LIBS=-lboost_thread -lpthread $$(pkg-config --libs $(PKGS))
 
-CXXFLAGS+=-g -Wall -D_FILE_OFFSET_BITS=64 -DFUSE_USE_VERSION=26 $$(pkg-config --cflags $(PKGS))
+CXXFLAGS+=-g -Wall -D_FILE_OFFSET_BITS=64 -DFUSE_USE_VERSION=26 $$(pkg-config --cflags $(PKGS))	--std=c++11 -Wno-deprecated
 
 all: $(PRODUCT)
 
