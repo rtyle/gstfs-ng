@@ -12,7 +12,7 @@
 #include <gst/gst.h>
 #include <glib.h>
 
-#include <boost/bind.hpp>
+#include <boost/bind/bind.hpp>
 #include <boost/scoped_ptr.hpp>
 #include <boost/shared_ptr.hpp>
 

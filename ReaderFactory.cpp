@@ -146,7 +146,7 @@ Reader * ReaderFactory::open(char const * path) throw() {
 			reader = new TranscodeFileReader(fileIndex, fileFd,
 			    transcodeElement.pipeline,
 			    doneGuarantee,
-			    boost::bind(&ReaderFactory::readAheadIsDone, this, _1));
+			    boost::bind(&ReaderFactory::readAheadIsDone, this, boost::placeholders::_1));
 			++*reader;
 			++readAheadCount;
 		    } else {
@@ -154,7 +154,7 @@ Reader * ReaderFactory::open(char const * path) throw() {
 			reader = new TranscodeFileReader(fileIndex, fileFd,
 			    transcodeElement.pipeline,
 			    doneGuarantee,
-			    boost::bind(&ReaderFactory::nonReadAheadIsDone, this, _1));
+			    boost::bind(&ReaderFactory::nonReadAheadIsDone, this, boost::placeholders::_1));
 		    }
 		}
 	    }
@@ -253,7 +253,7 @@ int ReaderFactory::stat(char const * path, struct stat * st) throw() {
 	    reader = new TranscodeFileReader(fileIndex, fileFd,
 		transcodeElement.pipeline,
 		doneGuarantee,
-		boost::bind(&ReaderFactory::readAheadIsDone, this, _1));
+		boost::bind(&ReaderFactory::readAheadIsDone, this, boost::placeholders::_1));
 	    map.insert(Map::value_type(fileIndex, reader));
 
 	    // readAheadRelease is responsible for it ...
@@ -324,7 +324,7 @@ void ReaderFactory::readAhead(char const * path) throw() {
 	Reader * reader = new TranscodeFileReader(fileIndex, fileFd,
 	    transcodeElement.pipeline,
 	    doneGuarantee,
-	    boost::bind(&ReaderFactory::readAheadIsDone, this, _1));
+	    boost::bind(&ReaderFactory::readAheadIsDone, this, boost::placeholders::_1));
 	map.insert(Map::value_type(fileIndex, reader));
 
 	// readAheadRelease is responsible for it
